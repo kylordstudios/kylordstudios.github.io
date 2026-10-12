@@ -3782,6 +3782,8 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
   };
 })(window);
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="goldpass.js"></script>
 <script>/* Neutron Conquest — Kylord Studios Gold Pass, friends and live multiplayer.
    Everything travels through the page's `room` (who has the game open right now).
    A battle is played in lockstep: every player runs the same battle, and they swap
@@ -3789,7 +3791,8 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
 (function (G) {
   'use strict';
   const NC = G.NC, Net = NC.Net = {};
-  const TURN_STEPS = 12, STEP = 1 / 60, TURN = TURN_STEPS * STEP, DELAY = 2, KEEP = 60;
+  const TURN_STEPS = 12, STEP = 1 / 60, TURN = TURN_STEPS * STEP, DELAY = G.KylordGold && G.KylordGold.ok ? 3 : 2, KEEP = 60;
+  const KG = G.KylordGold && G.KylordGold.ok ? G.KylordGold : null;
 
   /* ---------- Gold Pass profile (kept on this device) ---------- */
   const KEY = 'nc_goldpass';
@@ -3798,8 +3801,35 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
   let prof = load();
   Net.profile = () => prof;
   Net.cleanTag = t => String(t || '').replace(/[^A-Za-z0-9_ .-]/g, '').trim().slice(0, 16);
-  Net.signUp = function (tag, av) {
+  Net.server = !!KG;
+  let incoming = new Map(), outgoing = new Set(), friendsT = 0;
+  const fromServer = (p, friends) => {
+    const keep = prof || {};
+    prof = { tag: p.tag, av: p.av, pid: p.pid, joined: Date.parse(p.joined) || Date.now(), wins: p.wins | 0, games: p.games | 0, friends: friends ? friends.filter(f => f.state === 'friend').map(f => ({ pid: f.pid, tag: f.tag, av: f.av })) : (keep.friends || []) };
+    if (friends) { incoming = new Map(friends.filter(f => f.state === 'incoming').map(f => [f.pid, f])); outgoing = new Set(friends.filter(f => f.state === 'outgoing').map(f => f.pid)); }
+    save(prof);
+  };
+  Net.refreshFriends = async function () {
+    if (!KG || !KG.creds()) return;
+    try { const fr = await KG.friends(); fromServer(prof, fr); changed(); } catch (e) { /* try again later */ }
+  };
+  Net.code = () => KG ? KG.code() : '';
+  Net.useCode = async function (code) {
+    if (!KG) return 'The Gold Pass server is not available here';
+    try { const p = await KG.useCode(code); fromServer(p, await KG.friends()); Net.publish(); changed(); return ''; } catch (e) { return e.message; }
+  };
+  Net.addByTag = async function (tag) {
+    if (!KG) return 'The Gold Pass server is not available here';
+    try { const p = await KG.addFriend(null, Net.cleanTag(tag)); if (out.req.indexOf(p.pid) < 0) out.req.push(p.pid); Net.publish(); await Net.refreshFriends(); return ''; } catch (e) { return e.message; }
+  };
+  Net.recordResult = async function (won) {
+    if (!prof) return;
+    if (KG && KG.creds()) { try { fromServer(await KG.result(won)); changed(); return; } catch (e) { /* fall through */ } }
+    prof.games++; if (won) prof.wins++; save(prof);
+  };
+  Net.signUp = async function (tag, av) {
     tag = Net.cleanTag(tag); if (tag.length < 3) return 'Pick a gamertag of 3 to 16 letters or numbers';
+    if (KG) { try { fromServer(await KG.register(tag, av), []); Net.publish(); changed(); return ''; } catch (e) { return e.message; } }
     const pid = (prof && prof.pid) || myId || ('p' + Math.random().toString(36).slice(2, 12));
     prof = { tag, av, pid, joined: (prof && prof.joined) || Date.now(), friends: (prof && prof.friends) || [], wins: (prof && prof.wins) || 0, games: (prof && prof.games) || 0 };
     save(prof); Net.publish(); return '';
@@ -3814,6 +3844,19 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
   Net.onChange = fn => listeners.push(fn);
   const changed = () => { for (const fn of listeners) try { fn(); } catch (e) { /* a screen may be closed */ } };
   Net.init = async function () {
+    if (KG) {
+      const c = KG.creds();
+      if (c) { try { fromServer(await KG.login(), await KG.friends()); } catch (e) { /* offline: keep the saved copy */ } }
+      else if (prof && prof.tag) {        // a Gold Pass made before the server existed moves onto it
+        let t = prof.tag; for (let i = 0; i < 4; i++) { try { fromServer(await KG.register(t, prof.av), []); break; } catch (e) { t = (prof.tag.slice(0, 12) + (Math.random() * 9000 + 1000 | 0)); } }
+      }
+      room = await KG.room('nc-lobby');
+      room.onConnection(c2 => { connected = c2; changed(); });
+      room.onPeers(() => { maybeRefresh(); changed(); });
+      clearInterval(friendsT); friendsT = setInterval(() => { if (prof) Net.refreshFriends(); }, 20000);
+      Net.publish(); changed();
+      return;
+    }
     if (!G.claude || !G.claude.use) return;
     try { user = await G.claude.use('user'); if (user && user.id) myId = await user.id(); } catch (e) { user = null; }
     try { room = await G.claude.use('room'); } catch (e) { room = null; }
@@ -3835,23 +3878,36 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
       const gp = p.presence && p.presence.gp; if (!gp || typeof gp.pid !== 'string' || p.sameTab) continue;
       if (prof && gp.pid === prof.pid) continue;
       if (seen.has(gp.pid)) continue; seen.add(gp.pid);
-      list.push({ pid: gp.pid, tag: Net.cleanTag(gp.tag) || 'Player', av: typeof gp.av === 'string' ? gp.av : 'vanguard', st: p.presence.st, host: p.presence.host, req: p.presence.req || [], acc: p.presence.acc || [], inv: p.presence.inv, guest: p.guest });
+      let req = Array.isArray(p.presence.req) ? p.presence.req : [];
+      if (KG) req = prof && incoming.has && incoming.has(gp.pid) ? [prof.pid] : [];
+      list.push({ pid: gp.pid, tag: Net.cleanTag(gp.tag) || 'Player', av: typeof gp.av === 'string' ? gp.av : 'vanguard', st: p.presence.st, host: p.presence.host, req, acc: p.presence.acc || [], inv: p.presence.inv, guest: p.guest });
     }
     return list;
   };
   const isFriend = pid => !!(prof && prof.friends.some(f => f.pid === pid));
+  // someone online just asked me: fetch the list now rather than at the next poll
+  let lastAsk = '';
+  function maybeRefresh() {
+    if (!KG || !prof || !room) return;
+    const ask = room.peers().filter(p => p.presence && Array.isArray(p.presence.req) && p.presence.req.indexOf(prof.pid) >= 0).map(p => p.presence.gp && p.presence.gp.pid).sort().join(',');
+    if (ask !== lastAsk) { lastAsk = ask; Net.refreshFriends(); }
+  }
   Net.isFriend = isFriend;
   // friend requests travel in presence: I list who I asked, they list who they accept
-  Net.addFriend = function (pl) { if (!prof || isFriend(pl.pid)) return; if (out.req.indexOf(pl.pid) < 0) out.req.push(pl.pid); if (pl.req.indexOf(prof.pid) >= 0) Net.accept(pl); Net.publish(); };
+  Net.addFriend = function (pl) {
+    if (!prof || isFriend(pl.pid)) return;
+    if (KG) { if (out.req.indexOf(pl.pid) < 0) out.req.push(pl.pid); Net.publish(); KG.addFriend(pl.pid).then(() => Net.refreshFriends()).catch(() => {}); return; } if (out.req.indexOf(pl.pid) < 0) out.req.push(pl.pid); if (pl.req.indexOf(prof.pid) >= 0) Net.accept(pl); Net.publish(); };
   Net.accept = function (pl) {
     if (!prof) return;
+    if (KG) { Net.addFriend(pl); return; }
     if (!isFriend(pl.pid)) { prof.friends.push({ pid: pl.pid, tag: pl.tag, av: pl.av, since: Date.now() }); save(prof); }
     if (out.acc.indexOf(pl.pid) < 0) out.acc.push(pl.pid);
     Net.publish(); changed();
   };
-  Net.removeFriend = function (pid) { if (!prof) return; prof.friends = prof.friends.filter(f => f.pid !== pid); out.req = out.req.filter(x => x !== pid); out.acc = out.acc.filter(x => x !== pid); save(prof); Net.publish(); changed(); };
+  Net.removeFriend = function (pid) { if (!prof) return; if (KG) KG.removeFriend(pid).then(() => Net.refreshFriends()).catch(() => {}); prof.friends = prof.friends.filter(f => f.pid !== pid); out.req = out.req.filter(x => x !== pid); out.acc = out.acc.filter(x => x !== pid); save(prof); Net.publish(); changed(); };
   // requests waiting for me, and answers to mine
   Net.pending = function () {
+    if (KG) return Array.from(incoming.values ? incoming.values() : []).map(f => Object.assign({ req: [prof && prof.pid], acc: [] }, Net.players().find(pl => pl.pid === f.pid) || {}, { pid: f.pid, tag: f.tag, av: f.av }));
     const ps = Net.players(), want = [];
     for (const pl of ps) {
       if (!prof) break;
@@ -4532,29 +4588,42 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
     const box = $('gp_body'), pf = Net.profile();
     if (!pf && box.querySelector('.gpform')) return;      // the sign-up form stays put while someone fills it in
     // redraw only when something shown has changed, so buttons never move under a finger
-    const sig = pf ? JSON.stringify([pf.tag, pf.av, pf.friends, pf.wins, Net.available(), Net.connected(), Net.players(), Net.lobby() && { ...Net.lobby(), gr: 0 }, Net.gamePeers()]) : 'signup';
+    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;   // never redraw under someone typing
+    const sig = pf ? JSON.stringify([pf.tag, pf.av, pf.friends, pf.wins, pf.games, Net.pending().map(p => p.pid), Net.available(), Net.connected(), Net.players(), Net.lobby() && { ...Net.lobby(), gr: 0 }, Net.gamePeers()]) : 'signup';
     if (sig === renderGold.sig && box.firstChild) return;
     renderGold.sig = sig;
     box.innerHTML = '';
     if (!pf) {
       box.appendChild(txt('p', 'gplead', 'Join the Kylord Studios Gold Pass: one gamertag for every Kylord game, a friends list, and live battles against your friends.'));
-      const f = el('form', 'gpform'); f.onsubmit = e => { e.preventDefault(); const why = Net.signUp($('gp_tag').value, gpAv); if (why) { toast(why); R.sfx('deny'); } else { R.sfx('ready'); renderGold(); } };
+      const go = el('button', 'btn primary gold'); go.type = 'submit'; go.textContent = 'Join Gold Pass, free';
+      const f = el('form', 'gpform'); f.onsubmit = e => { e.preventDefault(); go.disabled = true; Net.signUp($('gp_tag').value, gpAv).then(why => { go.disabled = false; if (why) { toast(why); R.sfx('deny'); } else { R.sfx('ready'); renderGold.sig = ''; box.innerHTML = ''; renderGold(); } }); };
       const lb = el('label', '', ''); lb.appendChild(txt('span', '', 'Gamertag')); const inp = el('input'); inp.id = 'gp_tag'; inp.maxLength = 16; inp.autocomplete = 'nickname'; inp.placeholder = '3 to 16 letters or numbers'; lb.appendChild(inp); f.appendChild(lb);
       f.appendChild(txt('span', 'gplabel', 'Pick your badge'));
       const avs = el('div', 'gpavs'); avs.setAttribute('role', 'group'); avs.setAttribute('aria-label', 'Badge');
       for (const k of AVATARS) { const b = el('button', 'gpav'); b.type = 'button'; b.appendChild(avImg(k)); b.setAttribute('aria-label', U[k].name); b.setAttribute('aria-pressed', String(k === gpAv)); b.onclick = () => { gpAv = k; for (const c of avs.children) c.setAttribute('aria-pressed', String(c === b)); R.sfx('click'); }; avs.appendChild(b); }
       f.appendChild(avs);
-      const go = el('button', 'btn primary gold'); go.type = 'submit'; go.textContent = 'Join Gold Pass, free'; f.appendChild(go);
+      f.appendChild(go);
       box.appendChild(f);
-      box.appendChild(txt('p', 'fine', 'Your Gold Pass is saved on this device.'));
+      if (Net.server) {
+        box.appendChild(txt('p', 'fine', 'Already have a Gold Pass on another phone or computer? Paste its sign-in code here.'));
+        const f2 = el('form', 'gpform'); const lb2 = el('label', '', ''); lb2.appendChild(txt('span', '', 'Sign-in code')); const inp2 = el('input'); inp2.id = 'gp_code'; inp2.autocomplete = 'off'; inp2.placeholder = 'KG-…'; lb2.appendChild(inp2); f2.appendChild(lb2);
+        const go2 = el('button', 'btn'); go2.type = 'submit'; go2.textContent = 'Sign in'; f2.appendChild(go2);
+        f2.onsubmit = e => { e.preventDefault(); go2.disabled = true; Net.useCode(inp2.value).then(why => { go2.disabled = false; if (why) { toast(why); R.sfx('deny'); } else { R.sfx('ready'); renderGold.sig = ''; box.innerHTML = ''; renderGold(); } }); };
+        box.appendChild(f2);
+      } else box.appendChild(txt('p', 'fine', 'Your Gold Pass is saved on this device.'));
       return;
     }
     // profile card
     const card = el('div', 'gpcard'); card.appendChild(avImg(pf.av));
     const cd = el('div', ''); cd.appendChild(txt('b', 'gptag', pf.tag)); cd.appendChild(txt('span', '', 'Gold Pass member since ' + new Date(pf.joined).toLocaleDateString() + ' · ' + pf.wins + (pf.wins === 1 ? ' online win' : ' online wins') + ' in ' + pf.games + (pf.games === 1 ? ' battle' : ' battles'))); card.appendChild(cd);
     box.appendChild(card);
+    if (Net.server) {
+      const row0 = el('div', 'gpbtns');
+      row0.appendChild(btn('Copy my sign-in code', () => { const c = Net.code(); const done = () => toast('Sign-in code copied. Paste it into the Gold Pass screen on your other device. Keep it private.', 5000); try { navigator.clipboard.writeText(c).then(done, () => prompt('Your sign-in code. Keep it private:', c)); } catch (e) { prompt('Your sign-in code. Keep it private:', c); } }));
+      box.appendChild(row0);
+    }
     if (!Net.available()) {
-      box.appendChild(txt('p', 'gpnote', 'Online battles are coming to the Kylord Studios site soon. Your Gold Pass is saved, and you can play solo battles right now.'));
+      box.appendChild(txt('p', 'gpnote', 'Connecting to the Gold Pass server… If this stays here, check your internet connection. Solo battles work any time.'));
       return;
     }
     const players = Net.players(), pending = Net.pending(), lob = Net.lobby();
@@ -4601,7 +4670,13 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
     }
     // friends
     const fs = sec('Friends (' + pf.friends.length + ')');
-    if (!pf.friends.length) fs.appendChild(txt('p', 'fine', 'No friends yet. Add players from the list below when they are online.'));
+    if (Net.server) {
+      const f3 = el('form', 'gpform'); const lb3 = el('label', '', ''); lb3.appendChild(txt('span', '', 'Add a friend by gamertag')); const inp3 = el('input'); inp3.id = 'gp_add'; inp3.maxLength = 16; inp3.autocomplete = 'off'; inp3.placeholder = 'Their gamertag'; lb3.appendChild(inp3); f3.appendChild(lb3);
+      const go3 = el('button', 'btn sm gold'); go3.type = 'submit'; go3.textContent = 'Send friend request'; f3.appendChild(go3);
+      f3.onsubmit = e => { e.preventDefault(); const t = inp3.value; go3.disabled = true; Net.addByTag(t).then(why => { go3.disabled = false; if (why) { toast(why); R.sfx('deny'); } else { inp3.value = ''; inp3.blur(); toast('Friend request sent to ' + Net.cleanTag(t)); R.sfx('ready'); renderGold(); } }); };
+      fs.appendChild(f3);
+    }
+    if (!pf.friends.length) fs.appendChild(txt('p', 'fine', Net.server ? 'No friends yet. Add a friend by gamertag, or from the players online below.' : 'No friends yet. Add players from the list below when they are online.'));
     else {
       const ul = el('ul', 'gplist');
       for (const f of pf.friends) {
@@ -4681,7 +4756,7 @@ td.k { color: var(--ink); font-weight: 600; white-space: normal; text-align: lef
   function endGame() {
     running = false; R.music(false);
     const won = !!g.over && g.over.winner === ME;
-    if (mp()) { const pf = Net.profile(); pf.games++; if (won) pf.wins++; Net.saveProfile(); setTimeout(() => { Net.end(); Net.leaveGame(); }, 4000); }
+    if (mp()) { Net.recordResult(won); setTimeout(() => { Net.end(); Net.leaveGame(); }, 4000); }
     R.sfx(won ? 'win' : 'lose'); R.say(won ? 'Mission accomplished' : g.over.ship ? 'Command ship lost' : 'Our Command Center has been destroyed');
     if (won) { const sv = store.get(); sv.wins = sv.wins || {}; sv.wins[diff] = (sv.wins[diff] || 0) + 1; store.set(sv); }
     setTimeout(() => { buildReport(won); show('report'); }, 1500);
