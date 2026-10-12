@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kylord Studios</title>
+<meta name="description" content="Kylord Studios: Echoes Through Time and Neutron Conquest. Play free in your browser.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;800&family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #0A0D24; --panel: #141a44; --edge: #2b3190; --ink: #F3EFE3; --dim: #9aa6cf; --gold: #F2B632; --gold-d: #a8730f;
+  --display: "Unbounded", "Arial Black", sans-serif; --ui: "Chakra Petch", "Trebuchet MS", system-ui, sans-serif; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(900px 500px at 50% -10%, #1f2a7a 0%, transparent 65%), var(--bg); color: var(--ink); font: 16px/1.5 var(--ui); }
+a { color: inherit; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+header { padding: 56px 0 36px; text-align: center; }
+header svg { width: 110px; height: auto; filter: drop-shadow(0 0 24px rgba(242,182,50,.35)); }
+.word { display: inline-flex; flex-direction: column; gap: 10px; margin-top: 18px; font-family: var(--display); }
+.word b { font-size: clamp(38px, 11vw, 72px); font-weight: 800; line-height: 1; letter-spacing: .05em; margin-right: -.05em; }
+.word span { display: flex; align-items: center; gap: 12px; }
+.word i { flex: 1; height: 2px; background: var(--gold); }
+.word em { font-style: normal; font-size: clamp(12px, 3.4vw, 18px); letter-spacing: .58em; margin-right: -.58em; color: var(--gold); }
+header p { margin: 22px auto 0; max-width: 46ch; color: var(--dim); font-size: 17px; }
+h2 { font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); margin: 0 0 16px; }
+.games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+.game { display: flex; flex-direction: column; background: var(--panel); border: 2px solid var(--edge); border-radius: 18px; overflow: hidden; text-decoration: none; transition: transform .15s, border-color .15s; }
+.game:hover, .game:focus-visible { transform: translateY(-3px); border-color: var(--gold); outline: none; }
+.art { position: relative; aspect-ratio: 16 / 9; overflow: hidden; }
+.art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.nc { background: radial-gradient(60% 80% at 50% 30%, #5b3fc0 0%, #2a1f5c 55%, #15102c 100%); }
+.nc img { position: absolute; object-fit: contain; height: auto; filter: drop-shadow(0 10px 8px rgba(0,0,0,.5)); }
+.nc .hq { width: 46%; left: 44%; top: 8%; }
+.nc .tank { width: 26%; left: 26%; top: 20%; }
+.nc .jet { width: 22%; left: 8%; top: 6%; transform: rotate(-12deg); }
+.nc .logo { position: absolute; left: 5%; bottom: 6%; margin: 0; font-family: "Black Ops One", Impact, sans-serif; font-size: clamp(28px, 6vw, 44px); line-height: .9; text-transform: uppercase; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.nc .logo span { display: block; color: var(--gold); }
+.body { padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.body h3 { margin: 0; font-family: var(--display); font-size: 22px; font-weight: 800; }
+.body p { margin: 0; color: var(--dim); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.tags span { padding: 2px 10px; border: 1px solid var(--edge); border-radius: 999px; font-size: 13px; color: var(--dim); }
+.play { margin-top: auto; align-self: flex-start; padding: 10px 26px; border-radius: 12px; background: linear-gradient(180deg, #ffd978, var(--gold)); color: #1a1206; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 4px 0 var(--gold-d); }
+section { padding: 20px 0 28px; }
+.pass { display: flex; gap: 20px; align-items: center; padding: 22px; border-radius: 18px; background: linear-gradient(120deg, #2a1f05, #4a3608 55%, #2a1f05); border: 2px solid #c99522; }
+.pass svg { width: 64px; flex: none; }
+.pass h3 { margin: 0 0 6px; font-family: var(--display); font-size: 26px; background: linear-gradient(180deg, #fff3c2, var(--gold) 60%, #b07d14); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pass p { margin: 0; color: #f3dfa4; }
+footer { padding: 28px 0 40px; text-align: center; color: var(--dim); font-size: 14px; }
+@media (max-width: 520px) { .pass { flex-direction: column; text-align: center; } }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
+</head>
+<body>
+<header class="wrap">
+  <svg viewBox="0 0 200 220" aria-hidden="true"><path d="M100 6 L182 34 V110 C182 160 146 194 100 212 C54 194 18 160 18 110 V34 Z" fill="#F2B632"/><path d="M100 16 L173 41 V110 C173 154 141 185 100 202 C59 185 27 154 27 110 V41 Z" fill="#1B1F5E"/><path d="M100 16 L27 41 V110 C27 154 59 185 100 202 Z" fill="#2B3190"/><path d="M60 78 L60 50 L80 64 L100 40 L120 64 L140 50 L140 78 Z" fill="#F2B632"/><circle cx="60" cy="47" r="5" fill="#F2B632"/><circle cx="100" cy="36" r="5" fill="#F2B632"/><circle cx="140" cy="47" r="5" fill="#F2B632"/><rect x="60" y="82" width="80" height="7" fill="#F2B632"/><polygon points="59,98 81,98 81,128 111,98 138,98 99,137 141,172 114,172 87,149 81,155 81,172 59,172" fill="#F3EFE3"/></svg>
+  <h1 class="word" aria-label="Kylord Studios"><b>KYLORD</b><span><i></i><em>STUDIOS</em><i></i></span></h1>
+  <p>Games built to be played. Free to play in your browser, on your phone or your computer.</p>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>Play now</h2>
+    <div class="games">
+      <a class="game" href="echoes/">
+        <div class="art"><img src="img/echoes-cover.jpg" alt="Echoes Through Time cover art"></div>
+        <div class="body">
+          <h3>Echoes Through Time</h3>
+          <p>A time-travel match-3 adventure. Pick your hero, master their power, and battle a boss at the end of every era.</p>
+          <div class="tags"><span>50 levels</span><span>10 eras</span><span>Best on phones</span></div>
+          <span class="play">Play</span>
+        </div>
+      </a>
+      <a class="game" href="neutron/">
+        <div class="art nc">
+          <img class="hq" src="img/nc-hq.webp" alt="">
+          <img class="jet" src="img/nc-kestrel.webp" alt="">
+          <img class="tank" src="img/nc-warlord.webp" alt="">
+          <p class="logo">Neutron<span>Conquest</span></p>
+        </div>
+        <div class="body">
+          <h3>Neutron Conquest</h3>
+          <p>Real-time strategy. Land your Command Ship, mine crystal, build a base and an army, and take the enemy's Command Center.</p>
+          <div class="tags"><span>Tanks, planes and navy</span><span>Four-way war</span><span>Turn your phone sideways</span></div>
+          <span class="play">Play</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <div class="pass">
+      <svg viewBox="0 0 200 220" aria-hidden="true"><path d="M100 6 L182 34 V110 C182 160 146 194 100 212 C54 194 18 160 18 110 V34 Z" fill="#F2B632"/><path d="M100 16 L173 41 V110 C173 154 141 185 100 202 C59 185 27 154 27 110 V41 Z" fill="#1B1F5E"/><path d="M60 78 L60 50 L80 64 L100 40 L120 64 L140 50 L140 78 Z" fill="#F2B632"/><rect x="60" y="82" width="80" height="7" fill="#F2B632"/><polygon points="59,98 81,98 81,128 111,98 138,98 99,137 141,172 114,172 87,149 81,155 81,172 59,172" fill="#F3EFE3"/></svg>
+      <div>
+        <h3>Kylord Studios Gold Pass</h3>
+        <p>One free gamertag for every Kylord game. Make yours in Neutron Conquest today. Friends lists and online battles on this site are coming soon.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>© 2026 Kylord Studios</footer>
+</body>
+</html>
