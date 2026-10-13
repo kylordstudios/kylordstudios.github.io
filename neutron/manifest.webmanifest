@@ -1,0 +1,17 @@
+{
+  "name": "Neutron Conquest",
+  "short_name": "Neutron Conquest",
+  "description": "Real-time strategy from Kylord Studios. Land your Command Ship, build a base and an army, and take the enemy's Command Center.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0c0a16",
+  "theme_color": "#0c0a16",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
